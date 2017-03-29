@@ -2,12 +2,12 @@
 
 // TODO(dan): Rustdoc for all of this.
 
-use std::fmt;
 use std::io::Write;
+use std::vec;
 
-pub trait StringTree: fmt::Display {
-    // TODO(dan): Is this really necessary?
-    fn get_ref<'a>(&'a self) -> &'a [u8];
+pub trait StringTree {
+    fn get_ref(&self) -> &[u8];
+    fn to_string(&self) -> String { String::from_utf8(vec::Vec::from(self.get_ref())).unwrap() }
 }
 
 impl StringTree {
@@ -32,9 +32,7 @@ impl StringTree {
 pub type StringTreeStr = &'static str;
 
 impl StringTree for StringTreeStr {
-    fn get_ref<'a>(&'a self) -> &'a [u8] {
-        return self.as_bytes();
-    }
+    fn get_ref<'a>(&'a self) -> &'a [u8] { return self.as_bytes(); }
 }
 
 // TODO(dan): Make this private.
@@ -43,16 +41,7 @@ pub struct StringTreeBuf {
 }
 
 impl StringTree for StringTreeBuf {
-    fn get_ref<'a>(&'a self) -> &'a [u8] {
-        return self.buf.as_slice();
-    }
-}
-
-impl fmt::Display for StringTreeBuf {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO(dan): Real error handling.
-        write!(f, "{}", std::str::from_utf8(self.get_ref()).unwrap())
-    }
+    fn get_ref<'a>(&'a self) -> &'a [u8] { return self.buf.as_slice(); }
 }
 
 pub struct StringTreeIndent {
@@ -77,22 +66,33 @@ impl StringTreeIndent {
     }
 }
 
-impl fmt::Display for StringTreeIndent {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO(dan): Real error handling.
-        write!(f, "{}", std::str::from_utf8(self.get_ref()).unwrap())
+impl StringTree for StringTreeIndent {
+    fn get_ref(&self) -> &[u8] { return self.buf.as_slice(); }
+}
+
+pub type StringTreeOption<'a> = Option<&'a StringTree>;
+
+impl<'a> StringTree for StringTreeOption<'a> {
+    fn get_ref(&self) -> &[u8] {
+        match self {
+            &Some(x) => x.get_ref(),
+            &None => &[],
+        }
     }
 }
 
-impl StringTree for StringTreeIndent {
-    fn get_ref(&self) -> &[u8] {
-        return self.buf.as_slice();
-    }
+pub type StringTreeFn = Box<Fn() -> &'static str>;
+
+impl StringTree for StringTreeFn {
+    fn get_ref(&self) -> &[u8] { return self().as_bytes(); }
 }
+
 
 #[cfg(test)]
 mod test {
-    use super::StringTree;
+    use super::{StringTree, StringTreeFn, StringTreeOption};
+
+    use std::option;
 
     #[test]
     fn test_stringtree_indent() {
@@ -105,12 +105,26 @@ mod test {
         assert_eq!(i0.to_string(), "");
     }
 
+    fn strfoo() -> &'static str { "foo" }
+
     #[test]
     fn test_stringtree_new() {
         assert_eq!(StringTree::new(&[]).to_string(), "");
         assert_eq!(StringTree::new(&[&"foo"]).to_string(), "foo");
         assert_eq!(StringTree::new(&[&"foo", &"bar"]).to_string(), "foobar");
+
         let i2 = StringTree::indent("x").next().next();
         assert_eq!(StringTree::new(&[&i2, &"bar"]).to_string(), "xxbar");
+
+        let f: StringTreeFn = Box::new(strfoo);
+        assert_eq!(StringTree::new(&[&f]).to_string(), "foo");
+        assert_eq!(StringTree::new(&[&"bar", &f]).to_string(), "barfoo");
+
+        let none: StringTreeOption = option::Option::None;
+        let c: &StringTree = &StringTree::new(&[&"opt"]);
+        let some: StringTreeOption = option::Option::Some(c);
+        assert_eq!(StringTree::new(&[&none]).to_string(), "");
+        assert_eq!(StringTree::new(&[&some]).to_string(), "opt");
+        assert_eq!(StringTree::new(&[&"foo", &none, &some]).to_string(), "fooopt");
     }
 }
