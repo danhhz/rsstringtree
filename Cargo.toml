@@ -1,7 +1,7 @@
 [package]
 name = "stringtree"
 version = "0.1.0"
-authors = ["Daniel Harrison <daniel.harrison@gmail.com>"]
+authors = ["Daniel Harrison <daniel.harrison+github@gmail.com>"]
 
 description = "A template system for codegen in Rust"
 repository = "https://github.com/danhhz/rsstringtree"
@@ -9,3 +9,6 @@ readme = "README.md"
 keywords = ["template", "dsl", "codegen", "generation"]
 categories = ["template-engine"]
 license = "Apache-2.0"
+
+[badges]
+travis-ci = { repository = "danhhz/rsstringtree", branch = "master" }
